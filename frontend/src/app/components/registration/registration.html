@@ -1,0 +1,27 @@
+<div class="parent">
+    <div class="login-card">
+        <h3>Regisztrálás a portálra</h3>
+        <form>
+            <div class="form-floating mb-3">
+                <input type="email" class="form-control" placeholder="Email cím megadása" required>
+                <label class="form-label fw-semibold">Email cím</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" placeholder="Jelszó megadása" required>
+                <label class="form-label fw-semibold">Jelszó</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" placeholder="Jelszó mégegyszer" required>
+                <label class="form-label fw-semibold">Jelszó mégegyszer</label>
+            </div>
+
+            <button type="submit" class="btn btn-reg w-100 py-2 fw-semibold">Regisztrálás</button>
+        </form>
+        <button type="submit" class="btn btn-vissza w-100 py-2 fw-semibold" routerLink="">Vissza</button>
+    </div>
+</div>
+
+
+<router-outlet></router-outlet>
