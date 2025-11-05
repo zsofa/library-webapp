@@ -2,15 +2,28 @@
     <header
         class="d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
 
-        <ul class="nav col-12 col-md-auto mb-2 justify-content-center mb-md-0">
-            <li><a class="nav-link px-2 link-dark">Home</a></li>
-            <li><a class="nav-link px-2 link-dark">Könyveim</a></li>
-            <li><a class="nav-link px-2 link-dark">Foglalásaim/Kérések</a></li>
-            <li><a class="nav-link px-2 link-dark">Katalógus</a></li>
-            <li><a class="nav-link px-2 link-dark">Kapcsolat</a></li>
+        <ul class="nav nav-tabs col-12 col-md-auto mb-2 justify-content-center mb-md-0">
+            <!-- 
+            <li class="nav-item"><a class="nav-link link-dark disabled" routerLink="home"
+                    routerLinkActive="active">Home</a>
+            </li> -->
+            <li class="nav-item"><a class="nav-link px-2 link-dark" routerLink="mybooks" routerLinkActive="active"
+                    [routerLinkActiveOptions]="{ exact: true }">Könyveim</a>
+            </li>
+
+            <li class="nav-item"><a class="nav-link px-2 link-dark" routerLink="catalogue"
+                    routerLinkActive="active">Katalógus</a>
+            </li>
+            <li class="nav-item"><a class="nav-link px-2 link-dark" routerLink="requests"
+                    routerLinkActive="active">Előjegyzések</a>
+            </li>
+
+            <li class="nav-item"><a class="nav-link px-2 link-dark disabled">Kapcsolat</a></li>
         </ul>
 
         <div class="col-md-3 text-end">
+            <button class="btn btn-warning me-3"><i class="bi bi-cart"></i>
+            </button>
             <span class="me-3">
                 {{ loggedUserName ? 'Üdvözöllek, ' + loggedUserName : '' }}
             </span>

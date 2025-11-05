@@ -1,0 +1,50 @@
+<div class="container">
+    <div class="d-flex justify-content-center">
+        <form class="d-flex flex-column align-items-center w-75">
+            <label for="search" class="form-label mb-2 fs-5">Könyv Keresése</label>
+            <div class="input-group mb-3 w-75">
+                <input type="text" id="search" class="form-control form-control-lg" placeholder="Cím...">
+                <button class="btn btn-primary"><i class="bi bi-search me-3 ms-3"></i></button>
+            </div>
+        </form>
+    </div>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Cím</th>
+                <th>Szerző</th>
+                <th class="text-center">Raktáron</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>A Gyűrűk Ura: A Gyűrű Szövetsége</td>
+                <td>J.R.R Tolkien</td>
+                <td class="text-center">Igen</td>
+                <td class="text-center"><button class="btn btn-primary me-3 fw-bold">Kölcsönzés</button><button
+                        class="btn btn-success"><i class="bi bi-cart"></i>
+                    </button></td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>A Gyűrűk Ura: A Két Torony</td>
+                <td>J.R.R Tolkien</td>
+                <td class="text-center">Igen</td>
+                <td class="text-center"><button class="btn btn-primary me-3 fw-bold">Kölcsönzés</button><button
+                        class="btn btn-success"><i class="bi bi-cart"></i></button></td>
+            </tr>
+            <tr class="table-danger">
+                <td>3</td>
+                <td>A Gyűrűk Ura: A Király visszatér</td>
+                <td>J.R.R Tolkien</td>
+                <td class="text-center">Nem</td>
+                <td class="text-center"><button
+                        class="btn btn-outline-primary me-3 fw-bold disabled">Kölcsönzés</button><button
+                        class="btn btn-outline-success disabled"><i class="bi bi-cart"></i></button></td>
+            </tr>
+        </tbody>
+    </table>
+</div>

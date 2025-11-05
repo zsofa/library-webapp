@@ -1,9 +1,9 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet, RouterLinkWithHref, RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterOutlet],
+  imports: [RouterModule, RouterOutlet, RouterLinkWithHref],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
