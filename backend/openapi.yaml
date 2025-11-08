@@ -1,0 +1,550 @@
+openapi: 3.0.3
+info:
+  title: Library API
+  version: "1.0.0"
+  description: Simple library management REST API (BSc project).
+servers:
+  - url: http://localhost:5000/api
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /register:
+    post:
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /login:
+    post:
+      summary: Login and obtain tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /token/refresh:
+    post:
+      summary: Refresh access token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /logout:
+    post:
+      summary: Logout (revoke current token)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /me:
+    get:
+      summary: Current user claims
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id: { type: integer, example: 1 }
+                  role: { type: string, example: Member }
+                  library_id: { type: integer, example: 1 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /me/password:
+    post:
+      summary: Change own password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password: { type: string }
+                new_password: { type: string, description: "Min 8 chars, must include letter and digit." }
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /books:
+    get:
+      summary: List books
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: library_id
+          schema: { type: integer }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BookListItem" }
+        "500":
+          $ref: "#/components/responses/ServerError"
+  /books/{book_id}:
+    get:
+      summary: Get book
+      parameters:
+        - in: path
+          name: book_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: library_id
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BookDetail" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /loans:
+    post:
+      summary: Create loan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/CreateLoanByItem"
+                - $ref: "#/components/schemas/CreateLoanByBook"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loan" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /loans/{loan_id}/return:
+    post:
+      summary: Return a loan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: loan_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Loan" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /loans/{loan_id}/extend:
+    post:
+      summary: Extend a loan
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: loan_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [extra_days]
+              properties:
+                extra_days: { type: integer }
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /users/{user_id}/loans:
+    get:
+      summary: List loans for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: active
+          schema: { type: string, enum: [true, false, all], default: true }
+        - in: query
+          name: overdue
+          schema: { type: string, enum: [true, false], default: false }
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /reservations:
+    post:
+      summary: Create reservation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [book_id]
+              properties:
+                book_id: { type: integer }
+      responses:
+        "201": { description: Created }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /users/{user_id}/reservations:
+    get:
+      summary: List reservations for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, ready, expired, fulfilled, all], default: all }
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /books/{book_id}/reservations:
+    get:
+      summary: List reservations for a book (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: book_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /reservations/{reservation_id}/status:
+    post:
+      summary: Update reservation status (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reservation_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, ready, expired, fulfilled]
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /reservations/{reservation_id}/cancel:
+    post:
+      summary: Cancel reservation (user or admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reservation_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/reservations/expire:
+    post:
+      summary: Expire overdue reservations (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Expired reservations count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expired_count: { type: integer, minimum: 0 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /users/{user_id}:
+    get:
+      summary: Get user profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/stats:
+    get:
+      summary: Admin stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200": { description: OK }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string, example: invalid_credentials }
+        message: { type: string }
+        meta:
+          type: object
+          additionalProperties: true
+    RegisterRequest:
+      type: object
+      required: [email, password, name, address, date_of_birth]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, description: "Min 8 chars, include letter and digit." }
+        name: { type: string }
+        address: { type: string }
+        date_of_birth: { type: string, example: 2000-01-01 }
+    RegisterResponse:
+      type: object
+      properties:
+        user_id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    LoginResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        user:
+          type: object
+          properties:
+            user_id: { type: integer }
+            email: { type: string }
+            name: { type: string }
+            role: { type: string }
+            library_id: { type: integer }
+    BookListItem:
+      type: object
+      properties:
+        book_id: { type: integer }
+        title: { type: string }
+        author: { type: string }
+        isbn: { type: string }
+        publication_year: { type: integer }
+        category: { type: string }
+        total_items: { type: integer }
+        available_items: { type: integer }
+    BookDetail:
+      allOf:
+        - $ref: "#/components/schemas/BookListItem"
+    CreateLoanByItem:
+      type: object
+      required: [item_id]
+      properties:
+        item_id: { type: integer }
+        loan_days: { type: integer }
+    CreateLoanByBook:
+      type: object
+      required: [book_id]
+      properties:
+        book_id: { type: integer }
+        loan_days: { type: integer }
+    Loan:
+      type: object
+      properties:
+        loan_id: { type: integer }
+        item_id: { type: integer }
+        book_id: { type: integer, nullable: true }
+        user_id: { type: integer }
+        loan_date: { type: string }
+        due_date: { type: string }
+        return_date: { type: string, nullable: true }
+        fine_paid: { type: number }
