@@ -1,4 +1,5 @@
-<div class="container">
+<div class="container mt-4">
+    @if (myBooks.length > 0) {
     <table class="table table-hover align-middle">
         <thead>
             <tr>
@@ -11,26 +12,26 @@
             </tr>
         </thead>
         <tbody>
+            @for (book of myBooks; track $index) {
             <tr>
-                <td>1</td>
-                <td>A Gyűrűk Ura: A Gyűrű Szövetsége</td>
-                <td>J.R.R Tolkien</td>
-                <td>2025-11-05</td>
-                <td>2025-12-05</td>
+                <td>{{ $index + 1 }}</td>
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.borrowedDate | date: 'yyyy.MM.dd.' }}</td>
+                <td>
+                    {{ book.expirationDate | date: 'yyyy.MM.dd.' }}
+                    @if (isExpired(book.expirationDate)) {
+                    <span class="badge bg-danger ms-2">Lejárt</span>
+                    }
+                </td>
                 <td><button class="btn btn-primary fw-bold me-3">Hosszabítás</button><button
-                        class="btn btn-outline-danger fw-bold">Lemondás</button></td>
-            </tr>
-            <tr class="table-danger">
-                <td>2</td>
-                <td>A Gyűrűk Ura: A Két Torony</td>
-                <td>J.R.R Tolkien</td>
-                <td>2025-10-05</td>
-                <td>2025-11-05</td>
-                <td><button class="btn btn-primary fw-bold me-3">Hosszabítás</button><button
-                        class="btn btn-outline-danger fw-bold me-3">Lemondás</button><span
-                        class="text-danger fw-bold">Lejárt</span>
+                        class="btn btn-outline-danger fw-bold" (click)="removeFromMyBooks($index)">Lemondás</button>
                 </td>
             </tr>
+            }
         </tbody>
     </table>
+    } @else {
+    <h4 class="text-muted text-center">Nincsenek kölcsönzött könyveid</h4>
+    }
 </div>

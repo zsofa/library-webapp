@@ -1,4 +1,12 @@
 <div class="container">
+
+    @if (alertMessage) {
+    <div class="alert alert-{{ alertType }} alert-dismissible fade show text-center" role="alert">
+        {{ alertMessage }}
+        <button type="button" class="btn-close" aria-label="Close" (click)="alertMessage = ''"></button>
+    </div>
+    }
+
     <div class="d-flex justify-content-center">
         <form class="d-flex flex-column align-items-center w-75">
             <label for="search" class="form-label mb-2 fs-5">Könyv Keresése</label>
@@ -15,36 +23,33 @@
                 <th>Cím</th>
                 <th>Szerző</th>
                 <th class="text-center">Raktáron</th>
-                <th></th>
+                <th class="text-center">Kosárba</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>1</td>
-                <td>A Gyűrűk Ura: A Gyűrű Szövetsége</td>
-                <td>J.R.R Tolkien</td>
-                <td class="text-center">Igen</td>
-                <td class="text-center"><button class="btn btn-primary me-3 fw-bold">Kölcsönzés</button><button
-                        class="btn btn-success"><i class="bi bi-cart"></i>
-                    </button></td>
+            @for (book of books; track $index) {
+            <tr [class.table-danger]="!book.available">
+                <td>{{ $index + 1 }}</td>
+                <td>{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td class="text-center">
+                    @if (book.available) {
+                    Igen
+                    } @else {
+                    Nem
+                    }
+                </td>
+                <td class="text-center">
+                    <!-- <button class="btn btn-primary me-3 fw-bold" [disabled]="!book.available">
+                        Kölcsönzés
+                    </button> -->
+                    <button class="btn btn-success" [disabled]="!book.available" (click)="addToCart(book)">
+                        <i class="bi bi-cart"></i>
+                    </button>
+                </td>
             </tr>
-            <tr>
-                <td>2</td>
-                <td>A Gyűrűk Ura: A Két Torony</td>
-                <td>J.R.R Tolkien</td>
-                <td class="text-center">Igen</td>
-                <td class="text-center"><button class="btn btn-primary me-3 fw-bold">Kölcsönzés</button><button
-                        class="btn btn-success"><i class="bi bi-cart"></i></button></td>
-            </tr>
-            <tr class="table-danger">
-                <td>3</td>
-                <td>A Gyűrűk Ura: A Király visszatér</td>
-                <td>J.R.R Tolkien</td>
-                <td class="text-center">Nem</td>
-                <td class="text-center"><button
-                        class="btn btn-outline-primary me-3 fw-bold disabled">Kölcsönzés</button><button
-                        class="btn btn-outline-success disabled"><i class="bi bi-cart"></i></button></td>
-            </tr>
+            }
         </tbody>
     </table>
+
 </div>

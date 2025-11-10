@@ -21,8 +21,10 @@
             <li class="nav-item"><a class="nav-link px-2 link-dark disabled">Kapcsolat</a></li>
         </ul>
 
-        <div class="col-md-3 text-end">
-            <button class="btn btn-warning me-3"><i class="bi bi-cart"></i>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-warning me-3" data-bs-toggle="modal" data-bs-target="#cart"><i
+                    class="bi bi-cart"></i><span class="badge text-danger ms-2 fw-bold">{{ cartBooks.length
+                    }}</span>
             </button>
             <span class="me-3">
                 {{ loggedUserName ? 'Üdvözöllek, ' + loggedUserName : '' }}
@@ -33,3 +35,50 @@
 </div>
 
 <router-outlet></router-outlet>
+
+<div class="modal fade" id="cart" tabindex="-1" aria-labelledby="modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modal-title">
+                    <i class="bi bi-cart me-2"></i>Kosár
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                @if (cartBooks.length > 0) {
+                <ul class="list-group">
+                    @for (book of cartBooks; track $index) {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ $index + 1 }}.</strong> {{ book.title }}
+                            <small class="d-block">{{ book.author }}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" (click)="removeFromCart($index)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </li>
+                    }
+                </ul>
+                } @else {
+                <p class="text-center text-muted my-3">A kosarad üres :(</p>
+                }
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-success" [disabled]="cartBooks.length === 0" (click)="borrowBooks()">
+                    Kölcsönzés
+                </button>
+                @if (cartBooks.length === 0) {
+                <button class="btn btn-outline-danger" data-bs-dismiss="modal">
+                    Bezár
+                </button>
+                }@else {<button class="btn btn-outline-danger" (click)="emptyCart()">
+                    Kosár kiürítése
+                </button>}
+            </div>
+        </div>
+    </div>
+</div>
