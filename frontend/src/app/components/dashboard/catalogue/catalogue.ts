@@ -1,37 +1,68 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CartService } from '../../../services/cart-service';
+import { Book } from '../../../models/book.model';
+import { BookService } from '../../../services/book-service';
+import { Observable, combineLatest, BehaviorSubject, map } from 'rxjs';
+import { AsyncPipe, NgClass } from '@angular/common';
+import { compileNgModule } from '@angular/compiler';
 
 @Component({
   selector: 'app-catalogue',
-  imports: [],
+  imports: [AsyncPipe, NgClass],
   templateUrl: './catalogue.html',
   styleUrl: './catalogue.css'
 })
-export class Catalogue {
+export class Catalogue implements OnInit {
 
-  cartService = inject(CartService)
-  alertMessage = '';
-  alertType: 'success' | 'danger' = 'success';
+  cartService = inject(CartService);
+  bookService = inject(BookService);
 
-  books = [
-    { id: 1, title: 'A Gyűrűk Ura: A Gyűrű Szövetsége', author: 'J.R.R. Tolkien', available: true },
-    { id: 2, title: 'A Gyűrűk Ura: A Két Torony', author: 'J.R.R. Tolkien', available: true },
-    { id: 3, title: 'A Gyűrűk Ura: A Király visszatér', author: 'J.R.R. Tolkien', available: false },
-    { id: 3, title: 'A Hobbit: Váratlan Utazás', author: 'J.R.R. Tolkien', available: true },
-    { id: 3, title: 'Harry Potter és a bölcsek köve', author: 'J.K Rowling', available: true },
-    { id: 3, title: 'Harry Potter és a Titkok Kamrája', author: 'J.K Rowling', available: false }
-  ];
+  toBeRequestedBook: Book | null = null;
+  books$: Observable<Book[]> | undefined;
 
-  addToCart(book: any) {
+  searchText$ = new BehaviorSubject<string>('');
+  filteredBooks$: Observable<Book[]> | undefined;
+
+  constructor() { }
+
+  ngOnInit(): void {
+    this.filteredBooks$ = combineLatest([
+      this.bookService.getBooks(),
+      this.searchText$
+    ]).pipe(
+      map(([books, term]) => {
+        if (!term) return books;
+
+        const lowerTerm = term.toLowerCase();
+        return books.filter(b =>
+          b.title.toLowerCase().includes(lowerTerm) ||
+          b.author.toLowerCase().includes(lowerTerm)
+        );
+      })
+    );
+  }
+
+  onSearch(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.searchText$.next(input.value);
+  }
+
+  openRequestModal(book: Book) {
+    this.toBeRequestedBook = book;
+  }
+
+  confirmRequest() {
+    if (!this.toBeRequestedBook) return;
+
+    this.bookService.requestBook(this.toBeRequestedBook.id).subscribe(() => {
+      this.cartService.showAlert(`"${this.toBeRequestedBook?.title}" sikeresen előjegyezve`, 'warning');
+      this.books$ = this.bookService.getBooks();
+      this.toBeRequestedBook = null;
+    });
+  }
+
+  addToCart(book: Book) {
     this.cartService.addBook(book);
-    this.showAlert(`"${book.title}" hozzáadva a kosárhoz`, 'success');
+    this.cartService.showAlert(`"${book.title}" hozzáadva a kosárhoz`, 'success');
   }
-  showAlert(message: string, type: 'success' | 'danger') {
-    this.alertMessage = message;
-    this.alertType = type;
-    setTimeout(() => {
-      this.alertMessage = '';
-    }, 3000);
-  }
-
 }

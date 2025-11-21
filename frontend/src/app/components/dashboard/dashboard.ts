@@ -1,7 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { Router, RouterOutlet, RouterLinkWithHref, RouterModule } from '@angular/router';
 import { CartService } from '../../services/cart-service';
-import { MyBooksService } from '../../services/my-books-service';
+import { BookService } from '../../services/book-service';
+import { forkJoin } from 'rxjs';
+import { Book } from '../../models/book.model';
+import { Catalogue } from './catalogue/catalogue';
 
 @Component({
   selector: 'app-dashboard',
@@ -12,8 +15,17 @@ import { MyBooksService } from '../../services/my-books-service';
 export class Dashboard implements OnInit {
   loggedUserName: string | null = null;
   router = inject(Router);
-  cartService = inject(CartService)
-  myBooksService = inject(MyBooksService)
+  cartService = inject(CartService);
+  bookService = inject(BookService);
+
+  ngOnInit(): void {
+    const user = localStorage.getItem("loggedUser");
+    if (!user) {
+      this.router.navigateByUrl('');
+    } else {
+      this.loggedUserName = user;
+    }
+  }
 
   get cartBooks() {
     return this.cartService.getBooks();
@@ -29,17 +41,20 @@ export class Dashboard implements OnInit {
     const booksToBorrow = this.cartService.getBooks();
     if (booksToBorrow.length === 0) return;
 
-    this.myBooksService.addBooks(booksToBorrow);
-    this.cartService.clearCart();
-  }
+    const borrowObservables = booksToBorrow.map(book => {
+      return this.bookService.borrowBook(book.id);
+    })
 
-  ngOnInit(): void {
-    const user = localStorage.getItem("loggedUser");
-    if (!user) {
-      this.router.navigateByUrl('');
-    } else {
-      this.loggedUserName = user;
-    }
+    forkJoin(borrowObservables).subscribe({
+      next: () => {
+        this.cartService.clearCart();
+        this.cartService.showAlert('Sikeres kölcsönzés! Jó olvasást!', 'success');
+      },
+      error: (err) => {
+        console.error('Borrowing failed:', err);
+        this.cartService.showAlert('Hiba történt a kölcsönzés során.', 'danger');
+      }
+    });
   }
 
   onLogout() {
