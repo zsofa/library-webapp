@@ -12,14 +12,13 @@ CREATE TABLE Book (
     author VARCHAR(100) NOT NULL,
     isbn VARCHAR(17) NOT NULL UNIQUE, 
     publication_year INT,
-    publisher VARCHAR(100),
     category VARCHAR(50),
     
     CONSTRAINT check_publication_year CHECK (publication_year > 1000)
 );
 CREATE TABLE User_Role (
     role_id SERIAL PRIMARY KEY,
-    role_name VARCHAR(50) NOT NULL UNIQUE --> 'Admin', 'Member'
+    role_name VARCHAR(50) NOT NULL UNIQUE
 );
 CREATE TABLE App_User (
     user_id SERIAL PRIMARY KEY,
@@ -66,7 +65,7 @@ CREATE TABLE Loan (
     item_id INT NOT NULL,
     user_id INT NOT NULL,
     loan_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    due_date DATE NOT NULL, --> A kolcsonzesi idot a Node.js szamolja majd
+    due_date DATE NOT NULL,
     return_date TIMESTAMP WITH TIME ZONE,
     fine_paid NUMERIC(10, 2) DEFAULT 0.00,
     
@@ -100,8 +99,6 @@ CREATE TABLE Reservation (
         FOREIGN KEY (user_id)
         REFERENCES App_User (user_id)
         ON DELETE CASCADE,
-    CONSTRAINT unique_active_reservation
-        UNIQUE (book_id, user_id), 
     CONSTRAINT unique_queue_number_per_book
         UNIQUE (book_id, queue_number),
     CONSTRAINT check_reservation_status
@@ -123,3 +120,7 @@ CREATE INDEX idx_loan_due_date ON Loan (due_date); --lejaro kolcsonzesek lekerde
 
 CREATE INDEX idx_reservation_queue --varolista konyv cimekre
 ON Reservation (book_id, queue_number);
+
+CREATE UNIQUE INDEX unique_active_reservation_idx
+ON Reservation (book_id, user_id)
+WHERE status IN ('pending', 'ready');
