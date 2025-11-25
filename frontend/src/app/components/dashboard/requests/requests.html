@@ -1,0 +1,80 @@
+<div class="container">
+    @if (cartService.alertMessage) {
+    <div class="alert alert-{{ cartService.alertType }} alert-dismissible fade show text-center" role="alert">
+        {{ cartService.alertMessage }}
+        <button type="button" class="btn-close" aria-label="Close" (click)="cartService.alertMessage = ''"></button>
+    </div>
+    }
+    <h3 class="text-center">
+        <i class="bi bi-hourglass-split"></i>Előjegyzett könyvek
+    </h3>
+    @if ((requestedBooks$ | async)?.length) {
+    <table class="table table-hover align-middle mt-5">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Cím</th>
+                <th>Szerző</th>
+                <th>Előjegyzés dátuma</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (book of (requestedBooks$ | async); track book.id) {
+            <tr>
+                <td>{{$index+1}}</td>
+                <td>{{book.title}}</td>
+                <td>{{book.author}}</td>
+                <td>{{book.requestedAt | date: 'yyyy.MM.dd.'}}</td>
+                <td>
+                    @if (book.available) {
+                    <button class="btn btn-success" (click)="addToCart(book)" title="Kosárba">
+                        <i class="bi bi-cart"></i>
+                    </button>
+                    }@else {
+                    <button class="btn btn-outline-secondary disabled" title="Kosárba">
+                        <i class="bi bi-cart"></i>
+                    </button>
+                    }
+                    <button class="btn btn-outline-danger fw-bold ms-2" data-bs-toggle="modal"
+                        data-bs-target="#cancelRequest" (click)="openCancelModal(book)">Lemondás</button>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+
+    }@else {
+    <div class="alert alert-light text-center border rounded-3 p-5">
+        <i class="bi bi-journal-bookmark fs-1 text-muted"></i>
+        <h4 class="mt-3 text-muted">Jelenleg nincs előjegyzésed.</h4>
+    </div>
+    }
+</div>
+
+<div class="modal fade" id="cancelRequest" tabindex="-1" aria-labelledby="modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+
+            <div class="modal-header bg-danger text-white">
+                <h5>Biztos le akarja mondani az előjegyzést?</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+
+            @if (selectedRequest) {
+            <div class="modal-body text-center">
+                <p class="text-muted mt-2">
+                    <strong>{{selectedRequest.title}}</strong>
+                    <small class="d-block">{{selectedRequest.author}}</small>
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-danger" (click)="confirmCancel()" data-bs-dismiss="modal">Igen,
+                    lemondom</button>
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Mégse</button>
+            </div>
+            }
+        </div>
+    </div>
+</div>

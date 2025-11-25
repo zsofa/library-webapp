@@ -1,0 +1,63 @@
+.parent {
+    background: linear-gradient(135deg, #170f1f, #2575fc);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.login-card {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+    animation: fadeInUp 0.8s ease;
+}
+
+.login-card h3 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.btn-vissza {
+    background: linear-gradient(135deg, #ff0421, #fc7d7d);
+    color: white;
+    border: none;
+    transition: 0.3s;
+    margin-bottom: 10px;
+}
+
+.btn-vissza:hover {
+    opacity: 0.9;
+    transform: scale(1.03);
+}
+
+.btn-reg {
+    background: linear-gradient(135deg, #028206, #7ae59c);
+    color: white;
+    border: none;
+    transition: 0.3s;
+    margin-bottom: 10px;
+}
+
+.btn-reg:hover {
+    opacity: 0.9;
+    transform: scale(1.03);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
