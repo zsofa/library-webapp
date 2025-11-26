@@ -1,0 +1,105 @@
+{
+  "info": {
+    "name": "Library API",
+    "_postman_id": "8b5b3d1d-1111-2222-3333-abcdefabcdef",
+    "description": "Basic Postman collection for Library API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"test@example.com\",\"password\":\"secret123\",\"name\":\"User\",\"address\":\"Addr\",\"date_of_birth\":\"2000-01-01\"}"
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var data = pm.response.json();",
+              "if (data.access_token) pm.collectionVariables.set('token', data.access_token);",
+              "if (data.refresh_token) pm.collectionVariables.set('refreshToken', data.refresh_token);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"email\":\"test@example.com\",\"password\":\"secret123\"}" }
+      }
+    },
+    {
+      "name": "Refresh token",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/token/refresh",
+        "header": [{ "key": "Authorization", "value": "Bearer {{refreshToken}}" }]
+      }
+    },
+    {
+      "name": "Me",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/me",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+      }
+    },
+    {
+      "name": "Books list",
+      "request": { "method": "GET", "url": "{{baseUrl}}/books" }
+    },
+    {
+      "name": "Create loan (book-level)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/loans",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"book_id\":1,\"loan_days\":7}" }
+      }
+    },
+    {
+      "name": "Create reservation",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/reservations",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"book_id\":1}" }
+      }
+    },
+    {
+      "name": "Admin stats",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/admin/stats",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+      }
+    }
+  ]
+}
