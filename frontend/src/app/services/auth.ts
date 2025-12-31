@@ -1,40 +1,72 @@
 import { Injectable } from '@angular/core';
+import { Observable, throwError, tap } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { User } from '../models/user.model';
-import { Observable, of, throwError } from 'rxjs';
+
+interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  user: any;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class Auth {
-  private currentUser: User | null = null;
+  private apiUrl = 'http://localhost:5000/api';
 
-  constructor() { }
+  constructor(private http: HttpClient) {}
 
-  login(email: string, password: string): Observable<User> {
-    if (email === "user@user.com" && password === "1234") {
-      const user: User = {
-        id: 1,
-        name: 'User',
-        email,
-      };
-      localStorage.setItem('user', JSON.stringify(user));
-      this.currentUser = user;
-      return of(user);
-    } else {
-      return throwError(() => new Error('Invalid credentials'));
-    }
+  login(email: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { email, password }).pipe(
+      tap(res => {
+        const u = res.user || {};
+        const normalized: User = {
+          user_id: u.user_id ?? u.id,
+          name: u.name ?? '',
+          email: u.email ?? '',
+          role: u.role,
+          library_id: u.library_id 
+        };
+
+        localStorage.setItem('access_token', res.access_token);
+        localStorage.setItem('refresh_token', res.refresh_token);
+        localStorage.setItem('user', JSON.stringify(normalized));
+      })
+    );
   }
 
   logout(): void {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
-    this.currentUser = null;
   }
+
   getCurrentUser(): User | null {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
 
   isLoggedIn(): boolean {
-    return !!this.getCurrentUser();
+    return !!localStorage.getItem('access_token');
+  }
+
+  getAccessToken(): string | null {
+    return localStorage.getItem('access_token');
+  }
+
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    const role = (user?.role || '').toLowerCase();
+    return role === 'admin';
+  }
+
+  getRole(): string | null {
+    return this.getCurrentUser()?.role ?? null;
   }
 }

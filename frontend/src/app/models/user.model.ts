@@ -1,8 +1,12 @@
 export interface User {
-    id: number;
-    name: string;
-    email: string;
-    address?: string;
-    phoneNumber?: string;
-    createdAt?: Date;
+  user_id: number;
+  email: string;
+  name?: string;
+  role?: string;
+  library_id?: number;
+
+  address?: string;
+  phoneNumber?: string;
+  createdAt?: Date;
 }
+

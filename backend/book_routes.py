@@ -11,21 +11,11 @@ book_bp = Blueprint("books", __name__)
 
 @book_bp.get("/books")
 def list_books() -> Tuple[Response, int]:
-    """
-    GET /api/books
 
-    Query:
-      - q: case-insensitive substring in title/author
-      - category: exact case-insensitive category
-      - library_id: optional integer; if provided, totals/availability for that library only
-      - page: optional integer, default 1
-      - page_size: optional integer, default 20, max 100
-    """
     q = (request.args.get("q") or "").strip()
     category = (request.args.get("category") or "").strip()
     raw_library_id = (request.args.get("library_id") or "").strip()
 
-    # Pagináció
     page_raw = (request.args.get("page") or "1").strip()
     page_size_raw = (request.args.get("page_size") or "20").strip()
 
@@ -54,7 +44,6 @@ def list_books() -> Tuple[Response, int]:
 
     offset = (page - 1) * page_size
 
-    # library_id parse
     library_id: Optional[int] = None
     if raw_library_id:
         try:
@@ -85,7 +74,13 @@ def list_books() -> Tuple[Response, int]:
             b.publication_year,
             b.category,
             COUNT(DISTINCT i.item_id) AS total_items,
-            COUNT(DISTINCT l.item_id) AS loaned_items
+            COUNT(DISTINCT l.item_id) AS loaned_items,
+            (
+                SELECT COUNT(*)
+                FROM Reservation r
+                WHERE r.book_id = b.book_id
+                  AND r.status IN ('pending','ready')
+            ) AS waitlist_count
         FROM Book b
         {join_item}
         LEFT JOIN Loan l
@@ -128,6 +123,7 @@ def list_books() -> Tuple[Response, int]:
         total = row["total_items"] or 0
         loaned = row["loaned_items"] or 0
         available = max(total - loaned, 0)
+        waitlist = row["waitlist_count"] or 0
 
         result.append(
             {
@@ -139,6 +135,7 @@ def list_books() -> Tuple[Response, int]:
                 "category": row["category"],
                 "total_items": int(total),
                 "available_items": int(available),
+                "waitlist_count": int(waitlist),
             }
         )
 
@@ -147,11 +144,6 @@ def list_books() -> Tuple[Response, int]:
 
 @book_bp.get("/books/<int:book_id>")
 def get_book(book_id: int) -> Tuple[Response, int]:
-    """
-    GET /api/books/<book_id>
-    Return details for a single book including availability.
-    Optional library_id query parameter limits counts to a single library.
-    """
     raw_library_id = (request.args.get("library_id") or "").strip()
 
     params = []
@@ -178,7 +170,13 @@ def get_book(book_id: int) -> Tuple[Response, int]:
             b.publication_year,
             b.category,
             COUNT(DISTINCT i.item_id) AS total_items,
-            COUNT(DISTINCT l.item_id) AS loaned_items
+            COUNT(DISTINCT l.item_id) AS loaned_items,
+            (
+                SELECT COUNT(*)
+                FROM Reservation r
+                WHERE r.book_id = b.book_id
+                  AND r.status IN ('pending','ready')
+            ) AS waitlist_count
         FROM Book b
         LEFT JOIN Item i
             ON i.book_id = b.book_id{library_filter_sql}
@@ -209,6 +207,7 @@ def get_book(book_id: int) -> Tuple[Response, int]:
     total = row["total_items"] or 0
     loaned = row["loaned_items"] or 0
     available = max(total - loaned, 0)
+    waitlist = row["waitlist_count"] or 0
 
     return (
         jsonify(
@@ -221,6 +220,7 @@ def get_book(book_id: int) -> Tuple[Response, int]:
                 "category": row["category"],
                 "total_items": int(total),
                 "available_items": int(available),
+                "waitlist_count": int(waitlist),
             }
         ),
         200,

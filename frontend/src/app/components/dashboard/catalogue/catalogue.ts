@@ -1,29 +1,28 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CartService } from '../../../services/cart-service';
-import { Book } from '../../../models/book.model';
-import { BookService } from '../../../services/book-service';
-import { Observable, combineLatest, BehaviorSubject, map } from 'rxjs';
 import { AsyncPipe, NgClass } from '@angular/common';
-import { compileNgModule } from '@angular/compiler';
+import { BehaviorSubject, Observable, combineLatest, map } from 'rxjs';
+
+import { CartService } from '../../../services/cart-service';
+import { BookService } from '../../../services/book-service';
+import { ReservationService } from '../../../services/reservation-service';
+import { Book } from '../../../models/book.model';
 
 @Component({
   selector: 'app-catalogue',
+  standalone: true,
   imports: [AsyncPipe, NgClass],
   templateUrl: './catalogue.html',
   styleUrl: './catalogue.css'
 })
 export class Catalogue implements OnInit {
-
   cartService = inject(CartService);
   bookService = inject(BookService);
+  reservationService = inject(ReservationService);
 
   toBeRequestedBook: Book | null = null;
-  books$: Observable<Book[]> | undefined;
 
   searchText$ = new BehaviorSubject<string>('');
-  filteredBooks$: Observable<Book[]> | undefined;
-
-  constructor() { }
+  filteredBooks$!: Observable<Book[]>;
 
   ngOnInit(): void {
     this.filteredBooks$ = combineLatest([
@@ -32,11 +31,10 @@ export class Catalogue implements OnInit {
     ]).pipe(
       map(([books, term]) => {
         if (!term) return books;
-
-        const lowerTerm = term.toLowerCase();
+        const t = term.toLowerCase();
         return books.filter(b =>
-          b.title.toLowerCase().includes(lowerTerm) ||
-          b.author.toLowerCase().includes(lowerTerm)
+          b.title.toLowerCase().includes(t) ||
+          b.author.toLowerCase().includes(t)
         );
       })
     );
@@ -47,6 +45,20 @@ export class Catalogue implements OnInit {
     this.searchText$.next(input.value);
   }
 
+  borrow(book: Book) {
+    this.bookService.borrowBook(book.id, 14).subscribe({
+      next: () => {
+        this.cartService.showAlert(`Kölcsönzés sikeres: "${book.title}"`, 'success');
+        this.bookService.getBooks().subscribe();
+      },
+      error: (err) => {
+        console.error('[Catalogue] borrow error', err);
+        const msg = err?.error?.message || 'Nem sikerült kölcsönözni.';
+        this.cartService.showAlert(msg, 'danger');
+      }
+    });
+  }
+
   openRequestModal(book: Book) {
     this.toBeRequestedBook = book;
   }
@@ -54,15 +66,16 @@ export class Catalogue implements OnInit {
   confirmRequest() {
     if (!this.toBeRequestedBook) return;
 
-    this.bookService.requestBook(this.toBeRequestedBook.id).subscribe(() => {
-      this.cartService.showAlert(`"${this.toBeRequestedBook?.title}" sikeresen előjegyezve`, 'warning');
-      this.books$ = this.bookService.getBooks();
-      this.toBeRequestedBook = null;
+    this.reservationService.createReservation(this.toBeRequestedBook.id).subscribe({
+      next: () => {
+        this.cartService.showAlert(`Előjegyezve: "${this.toBeRequestedBook?.title}"`, 'warning');
+        this.toBeRequestedBook = null;
+      },
+      error: (err) => {
+        console.error('[Catalogue] createReservation error', err);
+        const msg = err?.error?.message || 'Nem sikerült előjegyezni.';
+        this.cartService.showAlert(msg, 'danger');
+      }
     });
-  }
-
-  addToCart(book: Book) {
-    this.cartService.addBook(book);
-    this.cartService.showAlert(`"${book.title}" hozzáadva a kosárhoz`, 'success');
   }
 }

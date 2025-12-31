@@ -1,0 +1,136 @@
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">
+      <i class="bi bi-shield-lock me-2"></i>Admin – Feladatlista
+    </h3>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary" (click)="toggleWaitingOnly()" [disabled]="loading">
+        @if (waitingOnly) { Teendők } @else { Minden könyv }
+      </button>
+
+      <button class="btn btn-outline-primary" (click)="reloadTasks()" [disabled]="loading">
+        <i class="bi bi-arrow-clockwise me-1"></i>Frissítés
+      </button>
+    </div>
+  </div>
+
+  @if (errorMsg) {
+    <div class="alert alert-danger">{{ errorMsg }}</div>
+  }
+  @if (successMsg) {
+    <div class="alert alert-success">{{ successMsg }}</div>
+  }
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <div class="fw-semibold">Könyvek, ahol van teendő</div>
+          <div class="text-muted small">Függőben/Átvehető előjegyzések alapján</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Könyv</th>
+                <th class="text-center">Várakozók</th>
+                <th>Státusz</th>
+                <th class="text-end">Művelet</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @if (loading) {
+                <tr>
+                  <td colspan="4" class="text-center p-4">
+                    <div class="spinner-border" role="status"></div>
+                  </td>
+                </tr>
+              } @else if (!tasks.length) {
+                <tr>
+                  <td colspan="4" class="text-center p-4 text-muted">
+                    Nincs feladat (nincs függőben/átvehető előjegyzés).
+                  </td>
+                </tr>
+              } @else {
+                @for (t of tasks; track t.bookId) {
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ t.title }}</div>
+                      <div class="text-muted small">{{ t.author }}</div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-dark">{{ t.waitingCount }}</span>
+                    </td>
+                    <td>
+                      <span class="badge" [ngClass]="badgeClass(t.nextStatus)">
+                        {{ statusHu(t.nextStatus) }}
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <button class="btn btn-sm btn-outline-primary me-2" (click)="openDetails(t)">
+                        Részletek
+                      </button>
+                      <button class="btn btn-sm btn-success"
+                              (click)="markNextReady(t)"
+                              [disabled]="loading || !t.nextReservationId">
+                         Átvehetővé állítás
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <div class="fw-semibold">Várólista részletek</div>
+          @if (selectedBook) {
+            <div class="text-muted small">
+              {{ selectedBook.title }} — {{ selectedBook.author }}
+            </div>
+          } @else {
+            <div class="text-muted small">Válassz egy könyvet a feladatlistából.</div>
+          }
+        </div>
+
+        <div class="card-body">
+          @if (!selectedBook) {
+            <div class="alert alert-light border text-center">
+              <i class="bi bi-info-circle"></i>
+              <div class="mt-2">Még nincs kiválasztott könyv.</div>
+            </div>
+          } @else if (!waitlist.length) {
+            <div class="text-muted">Nincs találat a kiválasztott könyvhöz.</div>
+          } @else {
+            <div class="list-group">
+              @for (r of waitlist; track r.reservation_id) {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold">Előjegyzés #{{ r.reservation_id }}</div>
+                    <div class="text-muted small">
+                      {{ r.reservation_date | date: 'yyyy.MM.dd.' }} •
+                      lejárat: {{ r.expiry_date | date: 'yyyy.MM.dd.' }}
+                    </div>
+                  </div>
+                  <span class="badge" [ngClass]="badgeClass(r.status)">
+                    {{ statusHu(r.status) }}
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

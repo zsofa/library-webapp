@@ -5,7 +5,7 @@ from flask import Blueprint, Response, jsonify, request
 from psycopg2.errors import UniqueViolation
 
 from auth_utils import get_current_user, login_required, role_required
-from config import RESERVATION_EXPIRY_DAYS
+from config import RESERVATION_EXPIRY_DAYS, DEFAULT_LOAN_DAYS
 from db import get_db_cursor
 from parse_utils import ParseError, parse_int
 from response_utils import error_response
@@ -16,9 +16,6 @@ VALID_STATUSES = {"pending", "ready", "expired", "fulfilled"}
 
 
 def _serialize_reservation(row: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convert a DB row into a JSON-friendly dict for Reservation entities.
-    """
     return {
         "reservation_id": row["reservation_id"],
         "book_id": row["book_id"],
@@ -33,11 +30,6 @@ def _serialize_reservation(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _change_status(reservation_id: int, new_status: str) -> Tuple[Response, int]:
-    """
-    Update status with validation and unified error responses.
-    Note: This function keeps the original single UPDATE pattern to remain compatible
-    with existing tests that mock the DB call sequence (no extra pre-SELECT).
-    """
     if new_status not in VALID_STATUSES:
         return error_response(
             "invalid_status",
@@ -75,17 +67,6 @@ def _change_status(reservation_id: int, new_status: str) -> Tuple[Response, int]
 @reservation_bp.post("/reservations")
 @login_required
 def create_reservation() -> Tuple[Response, int]:
-    """
-    POST /api/reservations
-
-    Errors:
-      - missing_fields (400)
-      - invalid_ids (400)
-      - user_not_found (404)
-      - book_not_found (404)
-      - reservation_exists (409)
-      - db_error (500)
-    """
     data = request.get_json(silent=True) or {}
 
     if "book_id" not in data:
@@ -108,7 +89,6 @@ def create_reservation() -> Tuple[Response, int]:
 
     try:
         with get_db_cursor(commit=True) as cur:
-            # Ensure user is active
             cur.execute(
                 """
                 SELECT user_id
@@ -121,7 +101,6 @@ def create_reservation() -> Tuple[Response, int]:
             if user is None:
                 return error_response("user_not_found", "User not found or inactive.", status=404)
 
-            # Ensure book exists
             cur.execute(
                 """
                 SELECT book_id
@@ -134,8 +113,6 @@ def create_reservation() -> Tuple[Response, int]:
             if book is None:
                 return error_response("book_not_found", "Book not found.", status=404)
 
-            # Check for an existing active reservation (pending or ready)
-            # for the same user and book.
             cur.execute(
                 """
                 SELECT reservation_id
@@ -154,7 +131,6 @@ def create_reservation() -> Tuple[Response, int]:
                     status=409,
                 )
 
-            # Concurrency-aware queue number assignment with limited retry.
             attempts = 0
             max_attempts = 3
             res = None
@@ -202,8 +178,7 @@ def create_reservation() -> Tuple[Response, int]:
                     if attempts >= max_attempts:
                         return error_response(
                             "reservation_exists",
-                            "A reservation for this book already exists or a queue "
-                            "conflict occurred. Please retry.",
+                            "A reservation for this book already exists or a queue conflict occurred. Please retry.",
                             status=409,
                         )
                     # retry
@@ -232,11 +207,6 @@ def create_reservation() -> Tuple[Response, int]:
 @reservation_bp.get("/users/<int:user_id>/reservations")
 @login_required
 def list_reservations_for_user(user_id: int) -> Tuple[Response, int]:
-    """
-    GET /api/users/<user_id>/reservations
-    Optional query:
-      - status=pending|ready|expired|fulfilled|all (default: all)
-    """
     current = get_current_user()
     current_user_id = current["user_id"]
     current_role = (current.get("role") or "").lower()
@@ -286,10 +256,6 @@ def list_reservations_for_user(user_id: int) -> Tuple[Response, int]:
 @reservation_bp.get("/books/<int:book_id>/reservations")
 @role_required("admin")
 def list_reservations_for_book(book_id: int) -> Tuple[Response, int]:
-    """
-    GET /api/books/<book_id>/reservations
-    Admin-only: waiting list ordered by queue_number.
-    """
     sql = """
         SELECT
             reservation_id,
@@ -316,10 +282,6 @@ def list_reservations_for_book(book_id: int) -> Tuple[Response, int]:
 @reservation_bp.post("/reservations/<int:reservation_id>/status")
 @role_required("admin")
 def update_reservation_status(reservation_id: int) -> Tuple[Response, int]:
-    """
-    POST /api/reservations/<reservation_id>/status
-    Body: { "status": "<pending|ready|expired|fulfilled>" }
-    """
     data = request.get_json(silent=True) or {}
     new_status = (data.get("status") or "").lower()
     return _change_status(reservation_id, new_status)
@@ -328,10 +290,6 @@ def update_reservation_status(reservation_id: int) -> Tuple[Response, int]:
 @reservation_bp.post("/reservations/<int:reservation_id>/cancel")
 @login_required
 def cancel_reservation(reservation_id: int) -> Tuple[Response, int]:
-    """
-    POST /api/reservations/<reservation_id>/cancel
-    Users can cancel (expire) their own reservations; Admin may cancel any.
-    """
     current = get_current_user()
     current_user_id = current["user_id"]
     current_role = (current.get("role") or "").lower()
@@ -362,14 +320,6 @@ def cancel_reservation(reservation_id: int) -> Tuple[Response, int]:
 @reservation_bp.post("/admin/reservations/expire")
 @role_required("admin")
 def expire_overdue_reservations() -> Tuple[Response, int]:
-    """
-    POST /api/admin/reservations/expire
-    Admin-only: mark all pending/ready reservations with expiry_date < today as expired.
-    Returns: { "expired_count": <int> }
-    Errors:
-      - forbidden (403) if not admin (handled by decorator)
-      - db_error (500)
-    """
     today = date.today()
     try:
         with get_db_cursor(commit=True) as cur:
@@ -389,3 +339,119 @@ def expire_overdue_reservations() -> Tuple[Response, int]:
         return error_response("db_error", "Database error occurred.", status=500)
 
     return jsonify({"expired_count": len(rows or [])}), 200
+
+
+@reservation_bp.post("/admin/books/<int:book_id>/issue")
+@role_required("admin")
+def issue_book_to_next_reservation(book_id: int) -> Tuple[Response, int]:
+    data = request.get_json(silent=True) or {}
+    loan_days_raw = data.get("loan_days", DEFAULT_LOAN_DAYS)
+
+    try:
+        loan_days = parse_int(
+            loan_days_raw,
+            field="loan_days",
+            error_code="invalid_loan_days",
+            message="loan_days must be an integer.",
+        )
+    except ParseError as e:
+        return error_response(e.error_code, e.message, status=e.status)
+
+    if loan_days <= 0:
+        return error_response("invalid_loan_days", "loan_days must be positive.", status=400)
+
+    now = datetime.now(timezone.utc)
+    due_date = (now + timedelta(days=loan_days)).date()
+
+    try:
+        with get_db_cursor(commit=True) as cur:
+            cur.execute("SELECT book_id FROM Book WHERE book_id = %s", (book_id,))
+            if cur.fetchone() is None:
+                return error_response("book_not_found", "Book not found.", status=404)
+
+            cur.execute(
+                """
+                SELECT reservation_id, user_id, queue_number, status
+                FROM Reservation
+                WHERE book_id = %s
+                  AND status IN ('pending', 'ready')
+                ORDER BY queue_number ASC
+                FOR UPDATE
+                LIMIT 1
+                """,
+                (book_id,),
+            )
+            res = cur.fetchone()
+            if res is None:
+                return error_response(
+                    "no_reservation",
+                    "No pending/ready reservation for this book.",
+                    status=409,
+                )
+
+            reservation_id = res["reservation_id"]
+            target_user_id = res["user_id"]
+
+            cur.execute(
+                """
+                SELECT i.item_id
+                FROM Item i
+                WHERE i.book_id = %s
+                  AND NOT EXISTS (
+                      SELECT 1 FROM Loan l
+                      WHERE l.item_id = i.item_id
+                        AND l.return_date IS NULL
+                  )
+                ORDER BY i.item_id ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+                """,
+                (book_id,),
+            )
+            item = cur.fetchone()
+            if item is None:
+                return error_response("no_available_item", "No available copy to loan.", status=409)
+
+            item_id = item["item_id"]
+
+            cur.execute(
+                """
+                INSERT INTO Loan (item_id, user_id, loan_date, due_date, fine_paid)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING loan_id, loan_date, due_date
+                """,
+                (item_id, target_user_id, now, due_date, 0.00),
+            )
+            loan = cur.fetchone()
+
+            cur.execute(
+                """
+                UPDATE Reservation
+                SET status = 'fulfilled'
+                WHERE reservation_id = %s
+                RETURNING reservation_id, status
+                """,
+                (reservation_id,),
+            )
+            _ = cur.fetchone()
+
+    except Exception:
+        return error_response("db_error", "Database error occurred.", status=500)
+
+    return (
+        jsonify(
+            {
+                "status": "ok",
+                "book_id": book_id,
+                "reservation_id": reservation_id,
+                "user_id": target_user_id,
+                "item_id": item_id,
+                "loan": {
+                    "loan_id": loan["loan_id"],
+                    "loan_date": loan["loan_date"].isoformat() if loan["loan_date"] else None,
+                    "due_date": loan["due_date"].isoformat() if loan["due_date"] else None,
+                },
+            }
+        ),
+        200,
+    )
