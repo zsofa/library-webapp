@@ -1,43 +1,65 @@
 <div class="parent">
-    <div class="login-card position-relative">
+  <div class="login-card position-relative">
 
-        <!-- 🌐 Language Buttons -->
-        <div class="position-absolute top-0 end-0 mt-3 me-3">
-            <button class="btn btn-sm btn-outline-primary me-2">EN</button>
-            <button class="btn btn-sm btn-outline-secondary">HU</button>
-        </div>
-
-        <h3 class="mt-4 text-center">Bejelentkezés a portálra</h3>
-
-        <form>
-            <div class="form-floating mb-3">
-                <input type="email" [(ngModel)]="loginObj.email" name="email" class="form-control"
-                    placeholder="Email megadása" required>
-                <label class="form-label fw-semibold">Email cím</label>
-            </div>
-
-            <div class="form-floating mb-3">
-                <input type="password" [(ngModel)]="loginObj.password" name="password" class="form-control"
-                    placeholder="Jelszó megadása" required>
-                <label class="form-label fw-semibold">Jelszó</label>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <input type="checkbox" id="rememberMe">
-                    <label for="rememberMe" class="ms-1 small text-muted">Emlékezz rám</label>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-login w-100 py-2 fw-semibold" (click)="onLogin()">Belépés</button>
-        </form>
-
-        <button type="submit" class="btn btn-reg w-100 py-2 fw-semibold" routerLink="registration">Regisztráció</button>
-
-        <div class="d-flex justify-content-center mt-3">
-            <a routerLink="forgotpwd" class="forgotpwd">Elfelejtetted a jelszavad?</a>
-        </div>
+    <div class="position-absolute top-0 end-0 mt-3 me-3">
+      <button class="btn btn-sm btn-outline-primary me-2">EN</button>
+      <button class="btn btn-sm btn-outline-secondary">HU</button>
     </div>
-</div>
 
-<router-outlet></router-outlet>
+    <h3 class="mt-4 text-center">Bejelentkezés a portálra</h3>
+
+    <form (ngSubmit)="onLogin()">
+
+      <div class="form-floating mb-3">
+        <input
+          type="email"
+          [(ngModel)]="loginObj.email"
+          name="email"
+          class="form-control"
+          placeholder="Email megadása"
+          required
+        />
+        <label class="form-label fw-semibold">Email cím</label>
+      </div>
+
+      <div class="form-floating mb-3">
+        <input
+          type="password"
+          [(ngModel)]="loginObj.password"
+          name="password"
+          class="form-control"
+          placeholder="Jelszó megadása"
+          required
+        />
+        <label class="form-label fw-semibold">Jelszó</label>
+      </div>
+
+      <div *ngIf="errorMessage" class="alert alert-danger text-center">
+        {{ errorMessage }}
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-login w-100 py-2 fw-semibold"
+        [disabled]="loading"
+      >
+        {{ loading ? 'Belépés...' : 'Belépés' }}
+      </button>
+
+    </form>
+
+    <button
+      class="btn btn-reg w-100 py-2 fw-semibold mt-2"
+      routerLink="/registration"
+    >
+      Regisztráció
+    </button>
+
+    <div class="d-flex justify-content-center mt-3">
+      <a routerLink="/forgotpwd" class="forgotpwd">
+        Elfelejtetted a jelszavad?
+      </a>
+    </div>
+
+  </div>
+</div>

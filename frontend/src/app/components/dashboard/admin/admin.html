@@ -1,0 +1,177 @@
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">
+      <i class="bi bi-shield-lock me-2"></i>Admin – Példánykezelés
+    </h3>
+
+    <button class="btn btn-outline-primary" (click)="reloadBooks()" [disabled]="loading">
+      <i class="bi bi-arrow-clockwise me-1"></i>Frissítés
+    </button>
+  </div>
+
+  @if (errorMsg) {
+    <div class="alert alert-danger">{{ errorMsg }}</div>
+  }
+  @if (successMsg) {
+    <div class="alert alert-success">{{ successMsg }}</div>
+  }
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <div class="fw-semibold">Könyvek</div>
+          <div class="text-muted small">Összes / Elérhető példány + várólista</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Könyv</th>
+                <th class="text-center" style="width: 140px;">Példány</th>
+                <th class="text-center" style="width: 140px;">Elérhető</th>
+                <th class="text-center" style="width: 140px;">Várólista</th>
+                <th class="text-end" style="width: 140px;"></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @if (loading) {
+                <tr>
+                  <td colspan="5" class="text-center p-4">
+                    <div class="spinner-border" role="status"></div>
+                  </td>
+                </tr>
+              } @else if (!books.length) {
+                <tr>
+                  <td colspan="5" class="text-center p-4 text-muted">
+                    Nincs könyv.
+                  </td>
+                </tr>
+              } @else {
+                @for (b of books; track b.id) {
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ b.title }}</div>
+                      <div class="text-muted small">{{ b.author }}</div>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-dark">{{ b.total_items }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-success">{{ b.availableItems }}</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-secondary">{{ b.waitlistCount }}</span>
+                    </td>
+                    <td class="text-end">
+                      <button class="btn btn-sm btn-outline-primary" (click)="openBook(b)">
+                        Kezelés
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <div class="fw-semibold">Kiválasztott könyv</div>
+          @if (selectedBook) {
+            <div class="text-muted small">
+              {{ selectedBook.title }} — {{ selectedBook.author }}
+              • összes: {{ selectedBook.total_items }}
+              • elérhető: {{ selectedBook.availableItems }}
+            </div>
+          } @else {
+            <div class="text-muted small">Válassz egy könyvet a listából.</div>
+          }
+        </div>
+
+        <div class="card-body">
+          @if (!selectedBook) {
+            <div class="alert alert-light border text-center">
+              <i class="bi bi-info-circle"></i>
+              <div class="mt-2">Még nincs kiválasztott könyv.</div>
+            </div>
+          } @else {
+
+            <div class="border rounded-4 p-3 mb-3 bg-light">
+              <div class="fw-semibold mb-2">Példány hozzáadás</div>
+
+              <div class="row g-2">
+                <div class="col-4">
+                  <label class="form-label small text-muted">Darab</label>
+                  <input class="form-control" type="number" min="1" max="200" [(ngModel)]="addCount">
+                </div>
+
+                <div class="col-4">
+                  <label class="form-label small text-muted">Állapot</label>
+                  <select class="form-select" [(ngModel)]="addCondition">
+                    <option value="new">Új</option>
+                    <option value="good">Jó</option>
+                    <option value="used">Használt</option>
+                    <option value="damaged">Sérült</option>
+                  </select>
+                </div>
+
+                <div class="col-4">
+                  <label class="form-label small text-muted">Polc prefix</label>
+                  <input class="form-control" [(ngModel)]="shelfMarkPrefix">
+                </div>
+              </div>
+
+              <div class="d-grid mt-3">
+                <button class="btn btn-success fw-semibold" (click)="addItems()" [disabled]="loading">
+                  <i class="bi bi-plus-circle me-1"></i>Hozzáadás
+                </button>
+              </div>
+
+              <div class="d-grid mt-2">
+                <button class="btn btn-outline-danger fw-semibold" (click)="removeOne()" [disabled]="loading">
+                  <i class="bi bi-dash-circle me-1"></i>1 elérhető példány elvétele
+                </button>
+              </div>
+            </div>
+
+            <div class="fw-semibold mb-2">Példányok</div>
+
+            @if (loading) {
+              <div class="text-center p-3">
+                <div class="spinner-border" role="status"></div>
+              </div>
+            } @else if (!items.length) {
+              <div class="text-muted">Nincs példány ehhez a könyvhöz.</div>
+            } @else {
+              <div class="list-group">
+                @for (it of items; track it.item_id) {
+                  <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-semibold">Item #{{ it.item_id }}</div>
+                      <div class="text-muted small">
+                        polc: {{ it.shelf_mark }} • állapot: {{ it.item_condition }}
+                      </div>
+                    </div>
+                    <span class="badge" [ngClass]="itemBadgeClass(it.is_loaned)">
+                      {{ itemBadgeText(it.is_loaned) }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+          }
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -2,8 +2,6 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from flask import Blueprint, Response, jsonify, request
-
-# Optional: import UniqueViolation if you add a partial UNIQUE index for active loans
 from psycopg2.errors import UniqueViolation
 
 from auth_utils import get_current_user, login_required, role_required
@@ -16,15 +14,6 @@ loan_bp = Blueprint("loans", __name__)
 
 
 def _pick_available_item(cur, book_id: int, user_library_id: Optional[int]) -> Optional[dict]:
-    """
-    Concurrency-safe selection of one free Item for the given book.
-    - Uses FOR UPDATE SKIP LOCKED so parallel transactions do not pick the same row.
-    - Must be called inside the same transaction that will insert the Loan row.
-    - Filters out items with an active (return_date IS NULL) loan.
-    - If user_library_id is provided, restricts items to that library.
-
-    Returns a dict with (item_id, book_id, library_id) or None if no free copy exists.
-    """
     params = [book_id]
     library_filter = ""
     if user_library_id is not None:
@@ -52,26 +41,6 @@ def _pick_available_item(cur, book_id: int, user_library_id: Optional[int]) -> O
 @loan_bp.post("/loans")
 @login_required
 def create_loan() -> Tuple[Response, int]:
-    """
-    POST /api/loans
-
-    Request JSON:
-      Item-level loan:
-        { "item_id": 10, "loan_days": 14 }
-      Book-level loan (backend selects a free item):
-        { "book_id": 5, "loan_days": 7 }
-
-    Error codes:
-      - missing_fields (400)
-      - invalid_loan_days (400)
-      - invalid_ids (400)
-      - item_not_found (404)
-      - book_not_found (404)
-      - item_already_loaned (409)
-      - no_available_item (409)
-      - different_library (400)
-      - db_error (500)
-    """
     data = request.get_json(silent=True) or {}
 
     item_id = data.get("item_id")
@@ -85,7 +54,6 @@ def create_loan() -> Tuple[Response, int]:
             status=400,
         )
 
-    # Validate loan_days
     try:
         loan_days = (
             parse_int(
@@ -117,7 +85,6 @@ def create_loan() -> Tuple[Response, int]:
             chosen_item = None
 
             if item_id is not None:
-                # Direct item flow
                 try:
                     item_id = parse_int(
                         item_id,
@@ -128,7 +95,6 @@ def create_loan() -> Tuple[Response, int]:
                 except ParseError as e:
                     return error_response(e.error_code, e.message, status=e.status)
 
-                # Fetch item
                 cur.execute(
                     """
                     SELECT item_id, book_id, library_id
@@ -148,7 +114,6 @@ def create_loan() -> Tuple[Response, int]:
                         status=400,
                     )
 
-                # Check active loan for this item
                 cur.execute(
                     """
                     SELECT loan_id
@@ -164,7 +129,6 @@ def create_loan() -> Tuple[Response, int]:
                     )
 
             else:
-                # Book-level flow (select a free item with row lock)
                 try:
                     book_id = parse_int(
                         book_id,
@@ -175,7 +139,6 @@ def create_loan() -> Tuple[Response, int]:
                 except ParseError as e:
                     return error_response(e.error_code, e.message, status=e.status)
 
-                # Ensure book exists
                 cur.execute(
                     """
                     SELECT book_id
@@ -195,7 +158,6 @@ def create_loan() -> Tuple[Response, int]:
                     )
                 item_id = chosen_item["item_id"]
 
-            # Insert loan
             cur.execute(
                 """
                 INSERT INTO Loan (item_id, user_id, loan_date, due_date, fine_paid)
@@ -206,7 +168,6 @@ def create_loan() -> Tuple[Response, int]:
             )
             loan = cur.fetchone()
     except UniqueViolation:
-        # In case a partial UNIQUE index on active loans is added later
         return error_response("item_already_loaned", "This item is already loaned out.", status=409)
     except Exception:
         return error_response("db_error", "Database error occurred.", status=500)
@@ -231,10 +192,6 @@ def create_loan() -> Tuple[Response, int]:
 @loan_bp.post("/loans/<int:loan_id>/return")
 @login_required
 def return_loan(loan_id: int) -> Tuple[Response, int]:
-    """
-    POST /api/loans/<loan_id>/return
-    Mark a loan as returned. Non-admins may only return their own loans.
-    """
     now = datetime.now(timezone.utc)
     current = get_current_user()
     current_user_id = current["user_id"]
@@ -299,10 +256,6 @@ def return_loan(loan_id: int) -> Tuple[Response, int]:
 @loan_bp.post("/loans/<int:loan_id>/extend")
 @login_required
 def extend_loan(loan_id: int) -> Tuple[Response, int]:
-    """
-    POST /api/loans/<loan_id>/extend
-    Extend an active (not returned, not overdue) loan by extra_days.
-    """
     data = request.get_json(silent=True) or {}
 
     try:
@@ -392,13 +345,6 @@ def extend_loan(loan_id: int) -> Tuple[Response, int]:
 @loan_bp.get("/users/<int:user_id>/loans")
 @login_required
 def list_loans_for_user(user_id: int) -> Tuple[Response, int]:
-    """
-    GET /api/users/<user_id>/loans
-    Query params:
-      - active=true|false|all (default true)
-      - overdue=true|false (default false)
-    Non-admin users can only list their own loans.
-    """
     current = get_current_user()
     current_user_id = current["user_id"]
     current_role = (current.get("role") or "").lower()
@@ -409,30 +355,34 @@ def list_loans_for_user(user_id: int) -> Tuple[Response, int]:
     active_param = (request.args.get("active") or "true").lower()
     overdue_param = (request.args.get("overdue") or "false").lower()
 
-    where = "user_id = %s"
+    where = "l.user_id = %s"
     params = [user_id]
 
     if active_param == "true":
-        where += " AND return_date IS NULL"
+        where += " AND l.return_date IS NULL"
     elif active_param == "false":
-        where += " AND return_date IS NOT NULL"
-    # "all" -> no extra filter
+        where += " AND l.return_date IS NOT NULL"
 
     if overdue_param == "true":
-        where += " AND return_date IS NULL AND due_date < CURRENT_DATE"
+        where += " AND l.return_date IS NULL AND l.due_date < CURRENT_DATE"
 
     sql = f"""
         SELECT
-            loan_id,
-            item_id,
-            user_id,
-            loan_date,
-            due_date,
-            return_date,
-            fine_paid
-        FROM Loan
+            l.loan_id,
+            l.item_id,
+            l.user_id,
+            l.loan_date,
+            l.due_date,
+            l.return_date,
+            l.fine_paid,
+            i.book_id,
+            b.title AS book_title,
+            b.author AS book_author
+        FROM Loan l
+        JOIN Item i ON i.item_id = l.item_id
+        JOIN Book b ON b.book_id = i.book_id
         WHERE {where}
-        ORDER BY loan_date DESC
+        ORDER BY l.loan_date DESC
     """
 
     try:
@@ -451,18 +401,18 @@ def list_loans_for_user(user_id: int) -> Tuple[Response, int]:
             "due_date": row["due_date"].isoformat() if row["due_date"] else None,
             "return_date": row["return_date"].isoformat() if row["return_date"] else None,
             "fine_paid": float(row["fine_paid"]) if row["fine_paid"] is not None else 0.0,
+            "book_id": row["book_id"],
+            "book_title": row["book_title"],
+            "book_author": row["book_author"],
         }
 
     return jsonify([serialize(r) for r in rows]), 200
 
 
+
 @loan_bp.get("/loans/overdue")
 @role_required("admin")
 def list_overdue_loans() -> Tuple[Response, int]:
-    """
-    GET /api/loans/overdue
-    Admin-only listing of all overdue (due_date < today, not returned) loans.
-    """
     sql = """
         SELECT
             loan_id,
@@ -497,3 +447,72 @@ def list_overdue_loans() -> Tuple[Response, int]:
         }
 
     return jsonify([serialize(r) for r in rows]), 200
+
+
+@loan_bp.get("/me/loans/details")
+@login_required
+def my_loans_with_book_details() -> Tuple[Response, int]:
+    """
+    GET /api/me/loans/details?active=true|false|all
+    Visszaadja a saját kölcsönzéseket úgy, hogy benne van:
+      - book_id, title, author
+      - item_id
+      - loan_date, due_date, return_date
+    """
+    current = get_current_user()
+    user_id = current["user_id"]
+
+    active_param = (request.args.get("active") or "true").lower()
+
+    where = "l.user_id = %s"
+    params = [user_id]
+
+    if active_param == "true":
+        where += " AND l.return_date IS NULL"
+    elif active_param == "false":
+        where += " AND l.return_date IS NOT NULL"
+
+    sql = f"""
+        SELECT
+            l.loan_id,
+            l.item_id,
+            l.user_id,
+            l.loan_date,
+            l.due_date,
+            l.return_date,
+            l.fine_paid,
+            b.book_id,
+            b.title,
+            b.author
+        FROM Loan l
+        JOIN Item i ON i.item_id = l.item_id
+        JOIN Book b ON b.book_id = i.book_id
+        WHERE {where}
+        ORDER BY l.loan_date DESC
+    """
+
+    try:
+        with get_db_cursor(commit=False) as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
+    except Exception:
+        return error_response("db_error", "Database error occurred.", status=500)
+
+    result = []
+    for r in rows:
+        result.append(
+            {
+                "loan_id": r["loan_id"],
+                "item_id": r["item_id"],
+                "user_id": r["user_id"],
+                "loan_date": r["loan_date"].isoformat() if r["loan_date"] else None,
+                "due_date": r["due_date"].isoformat() if r["due_date"] else None,
+                "return_date": r["return_date"].isoformat() if r["return_date"] else None,
+                "fine_paid": float(r["fine_paid"]) if r["fine_paid"] is not None else 0.0,
+                "book_id": r["book_id"],
+                "title": r["title"],
+                "author": r["author"],
+            }
+        )
+
+    return jsonify(result), 200

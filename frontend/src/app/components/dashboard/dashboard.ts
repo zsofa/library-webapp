@@ -1,65 +1,47 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { Router, RouterOutlet, RouterLinkWithHref, RouterModule } from '@angular/router';
-import { CartService } from '../../services/cart-service';
-import { BookService } from '../../services/book-service';
-import { forkJoin } from 'rxjs';
-import { Book } from '../../models/book.model';
-import { Catalogue } from './catalogue/catalogue';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { NgIf, AsyncPipe } from '@angular/common';
+import { map, Observable, of } from 'rxjs';
+
+import { Auth } from '../../services/auth';
+import { ReservationService } from '../../services/reservation-service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterModule, RouterOutlet, RouterLinkWithHref],
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIf, AsyncPipe],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
 export class Dashboard implements OnInit {
-  loggedUserName: string | null = null;
-  router = inject(Router);
-  cartService = inject(CartService);
-  bookService = inject(BookService);
+  private auth = inject(Auth);
+  private router = inject(Router);
+  private reservationService = inject(ReservationService);
+
+  readyCount$: Observable<number> = of(0);
 
   ngOnInit(): void {
-    const user = localStorage.getItem("loggedUser");
-    if (!user) {
-      this.router.navigateByUrl('');
-    } else {
-      this.loggedUserName = user;
-    }
+    this.readyCount$ = this.reservationService.getMyReservations('all').pipe(
+      map(rows => (rows ?? []).filter(r => !!r.can_borrow).length)
+    );
   }
 
-  get cartBooks() {
-    return this.cartService.getBooks();
-  }
-  removeFromCart(index: number) {
-    this.cartService.removeBook(index);
-  }
-  emptyCart() {
-    this.cartService.clearCart();
+  get userEmail(): string {
+    const u: any = this.auth.getCurrentUser();
+    return u?.email ?? '';
   }
 
-  borrowBooks() {
-    const booksToBorrow = this.cartService.getBooks();
-    if (booksToBorrow.length === 0) return;
-
-    const borrowObservables = booksToBorrow.map(book => {
-      return this.bookService.borrowBook(book.id);
-    })
-
-    forkJoin(borrowObservables).subscribe({
-      next: () => {
-        this.cartService.clearCart();
-        this.cartService.showAlert('Sikeres kölcsönzés! Jó olvasást!', 'success');
-      },
-      error: (err) => {
-        console.error('Borrowing failed:', err);
-        this.cartService.showAlert('Hiba történt a kölcsönzés során.', 'danger');
-      }
-    });
+  get userRole(): string {
+    const u: any = this.auth.getCurrentUser();
+    return (u?.role ?? '').toLowerCase();
   }
 
-  onLogout() {
-    localStorage.removeItem("loggedUser");
-    localStorage.removeItem('library_cart');
-    this.router.navigateByUrl('');
+  get isAdmin(): boolean {
+    return this.userRole === 'admin';
+  }
+
+  logout() {
+    this.auth.logout();
+    this.router.navigateByUrl('/');
   }
 }

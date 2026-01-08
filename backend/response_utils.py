@@ -27,7 +27,6 @@ def error_response(
     if details is not None:
         payload["details"] = details
 
-    # Auto-inject request_id into meta if present in flask.g
     merged_meta: Dict[str, Any] = {}
     if isinstance(meta, dict):
         merged_meta.update(meta)

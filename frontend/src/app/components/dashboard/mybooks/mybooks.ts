@@ -1,66 +1,83 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { AsyncPipe, DatePipe } from '@angular/common';
-import { BookService } from '../../../services/book-service';
+import { Component, OnInit, inject } from '@angular/core';
+import { AsyncPipe, DatePipe, NgIf, NgFor } from '@angular/common';
 import { Observable } from 'rxjs';
-import { Book } from '../../../models/book.model';
+import { Loan } from '../../../models/loan.model';
+import { LoanService } from '../../../services/loan-service';
+import { CartService } from '../../../services/cart-service';
 
 @Component({
   selector: 'app-mybooks',
-  imports: [DatePipe, AsyncPipe],
+  standalone: true,
+  imports: [DatePipe, AsyncPipe, NgIf, NgFor],
   templateUrl: './mybooks.html',
   styleUrl: './mybooks.css'
 })
 export class Mybooks implements OnInit {
 
-  bookService = inject(BookService);
-  borrowedBooks$: Observable<Book[]> | undefined;
-  selectedBook: Book | null = null;
+  private loanService = inject(LoanService);
+  private cartService = inject(CartService);
+
+  loans$!: Observable<Loan[]>;
+  selectedLoan: Loan | null = null;
 
   ngOnInit(): void {
-    this.loadBorrowedBooks();
+    this.loadLoans();
   }
 
-  loadBorrowedBooks() {
-    this.borrowedBooks$ = this.bookService.getMyBooks();
+  loadLoans() {
+    this.loans$ = this.loanService.getMyLoansDetailed('true');
   }
 
-  openCancelModal(book: Book) {
-    this.selectedBook = book;
+  openCancelModal(loan: Loan) {
+    this.selectedLoan = loan;
   }
 
-  openRenewModal(book: Book) {
-    this.selectedBook = book;
+  openRenewModal(loan: Loan) {
+    this.selectedLoan = loan;
   }
 
-  returnBook(bookId: number) {
-    this.bookService.returnBook(bookId).subscribe(() => {
-      this.loadBorrowedBooks();
+  returnLoan(loanId: number) {
+    this.loanService.returnLoan(loanId).subscribe({
+      next: () => {
+        this.cartService.showAlert('Könyv visszahozva.', 'success');
+        this.loadLoans();
+      },
+      error: err => {
+        console.error('[Mybooks] returnLoan hiba:', err);
+        this.cartService.showAlert(err?.error?.message || 'Visszahozás sikertelen.', 'danger');
+      }
     });
   }
 
-  renewBook(book: Book) {
-    if (!book.extended) {
-      this.bookService.renewBook(book.id).subscribe(() => {
-        this.loadBorrowedBooks();
-      });
-    }
+  renewLoan(loan: Loan) {
+    this.loanService.extendLoan(loan.loan_id, 30).subscribe({
+      next: () => {
+        this.cartService.showAlert('Hosszabbítás sikeres (+30 nap).', 'success');
+        this.loadLoans();
+      },
+      error: err => {
+        console.error('[Mybooks] extendLoan hiba:', err);
+        this.cartService.showAlert(err?.error?.message || 'Hosszabbítás sikertelen.', 'danger');
+      }
+    });
   }
 
-  isExpired(expirationDate: Date): boolean {
-    return new Date(expirationDate) < new Date();
+  isExpired(dueDate: string | null): boolean {
+    if (!dueDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due.getTime() < today.getTime();
   }
 
-  getRemainingDays(expirationDate: Date | null | undefined): number {
-    if (!expirationDate) return 0;
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const exp = new Date(expirationDate);
-    exp.setHours(0, 0, 0, 0);
-    const diff = exp.getTime() - now.getTime();
-    return Math.round(diff / (1000 * 60 * 60 * 24));
-  }
-
-  isExtended(book: Book) {
-    return book.extended;
+  getRemainingDays(dueDate: string | null): number {
+    if (!dueDate) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const diffMs = due.getTime() - today.getTime();
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
   }
 }

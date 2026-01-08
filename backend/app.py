@@ -21,25 +21,19 @@ jwt = JWTManager()
 
 
 def create_app() -> Flask:
-    """
-    Application factory: initializes Flask, JWT, CORS, error handlers, and blueprints.
-    """
     load_dotenv()
 
     app = Flask(__name__)
 
-    # Secrets / JWT configuration (override via environment variables)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret")
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
         hours=int(os.getenv("JWT_EXPIRES_HOURS", "2"))
     )
-    # Configure refresh tokens (optional expiration, default 30 days here)
     app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(
         days=int(os.getenv("JWT_REFRESH_EXPIRES_DAYS", "30"))
     )
 
-    # CORS allowlist (comma-separated origins). Prefer explicit origins over "*".
     cors_default = "http://localhost:4200,http://localhost:3000"
     cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", cors_default).split(",")]
     CORS(
@@ -47,11 +41,8 @@ def create_app() -> Flask:
         resources={r"/api/*": {"origins": cors_origins, "supports_credentials": False}},
     )
 
-    # Initialize JWT
     jwt.init_app(app)
 
-    # In-memory JWT blocklist for revoked JTIs (for logout)
-    # For multi-process/container deployments use a shared store (e.g., Redis).
     app.config.setdefault("JWT_BLOCKLIST", set())
 
     @jwt.token_in_blocklist_loader
@@ -60,7 +51,6 @@ def create_app() -> Flask:
         blocklist = current_app.config.get("JWT_BLOCKLIST")
         return jti in blocklist if jti and isinstance(blocklist, set) else False
 
-    # Request ID middleware (helps correlate logs with responses)
     @app.before_request
     def _attach_request_id():
         rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())
@@ -72,12 +62,10 @@ def create_app() -> Flask:
             resp.headers["X-Request-ID"] = g.request_id
         return resp
 
-    # Health check
     @app.get("/api/health")
     def health():
         return jsonify({"status": "ok"}), 200
 
-    # Optional: serve OpenAPI spec if present in project root
     @app.get("/api/openapi.yaml")
     def openapi_yaml():
         try:
@@ -85,7 +73,6 @@ def create_app() -> Flask:
         except Exception:
             return error_response("not_found", "OpenAPI spec not found.", status=404)
 
-    # JWT error handlers (unified JSON errors)
     @jwt.invalid_token_loader
     def _invalid_token(reason: str):
         return error_response("unauthorized", "Missing or invalid token.", status=401)
@@ -106,17 +93,14 @@ def create_app() -> Flask:
     def _revoked(jwt_header, jwt_payload):
         return error_response("token_revoked", "Token has been revoked.", status=401)
 
-    # 429 (rate limiting) handler
     @app.errorhandler(429)
     def handle_429(e):
         return error_response("too_many_requests", "Too many requests.", status=429)
 
-    # 404 handler
     @app.errorhandler(404)
     def not_found(e):
         return error_response("not_found", "Endpoint not found.", status=404)
 
-    # Catch-all exception handler, behavior depends on debug mode
     @app.errorhandler(Exception)
     def handle_exception(e):
         debug_mode = current_app.debug
@@ -129,7 +113,6 @@ def create_app() -> Flask:
         message = str(e) if debug_mode else "Unexpected server error."
         return error_response("server_error", message, status=500)
 
-    # Register blueprints under /api
     app.register_blueprint(auth_bp, url_prefix="/api")
     app.register_blueprint(book_bp, url_prefix="/api")
     app.register_blueprint(loan_bp, url_prefix="/api")
