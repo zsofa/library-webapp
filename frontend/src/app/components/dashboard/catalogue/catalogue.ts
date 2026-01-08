@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, combineLatest, map } from 'rxjs';
 import { CartService } from '../../../services/cart-service';
 import { BookService } from '../../../services/book-service';
 import { ReservationService } from '../../../services/reservation-service';
+import { LoanService } from '../../../services/loan-service';
 import { Book } from '../../../models/book.model';
 
 @Component({
@@ -18,6 +19,7 @@ export class Catalogue implements OnInit {
   cartService = inject(CartService);
   bookService = inject(BookService);
   reservationService = inject(ReservationService);
+  loanService = inject(LoanService);
 
   toBeRequestedBook: Book | null = null;
 
@@ -46,13 +48,21 @@ export class Catalogue implements OnInit {
   }
 
   borrow(book: Book) {
-    this.bookService.borrowBook(book.id, 14).subscribe({
+    const beforeAvail = (book as any).availableItems ?? null;
+    const beforeTotal = (book as any).totalItems ?? null;
+
+    this.loanService.createLoanForBook(book.id, 14).subscribe({
       next: () => {
-        this.cartService.showAlert(`Kölcsönzés sikeres: "${book.title}"`, 'success');
+        const extra =
+          beforeAvail !== null && beforeTotal !== null
+            ? ` (elérhető: ${beforeAvail} / összes: ${beforeTotal})`
+            : '';
+
+        this.cartService.showAlert(`Kölcsönzés sikeres: "${book.title}"${extra}`, 'success');
         this.bookService.getBooks().subscribe();
       },
       error: (err) => {
-        console.error('[Catalogue] borrow error', err);
+        console.error('[Catalogue] createLoanForBook error', err);
         const msg = err?.error?.message || 'Nem sikerült kölcsönözni.';
         this.cartService.showAlert(msg, 'danger');
       }

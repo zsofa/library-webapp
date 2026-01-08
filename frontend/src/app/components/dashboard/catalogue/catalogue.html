@@ -31,6 +31,7 @@
         <th>#</th>
         <th>Cím</th>
         <th>Szerző</th>
+        <th class="text-center">Példány</th>
         <th class="text-center">Elérhető</th>
         <th class="text-center">Művelet</th>
       </tr>
@@ -47,11 +48,14 @@
           <td>{{ book.author }}</td>
 
           <td class="text-center">
-            @if (book.available) {
-              <i style="color:green;" class="bi bi-check-lg"></i>
-            } @else {
-              <i style="color:red;" class="bi bi-x-circle"></i>
-            }
+            <span class="badge bg-dark">{{ book.total_items }}</span>
+          </td>
+
+          <td class="text-center">
+            <span class="badge" [ngClass]="book.available ? 'bg-success' : 'bg-secondary'">
+              {{ book.availableItems }}
+            </span>
+            <div class="small text-muted">/ {{ book.total_items }}</div>
           </td>
 
           <td class="text-center">
@@ -100,6 +104,13 @@
           <strong>{{ toBeRequestedBook?.title }}</strong>
           <small class="d-block">{{ toBeRequestedBook?.author }}</small>
         </p>
+
+        @if (toBeRequestedBook) {
+          <div class="small text-muted">
+            Elérhető: <span class="fw-semibold">{{ toBeRequestedBook.availableItems }}</span>
+            / Összes: <span class="fw-semibold">{{ toBeRequestedBook.total_items }}</span>
+          </div>
+        }
       </div>
 
       <div class="modal-footer">

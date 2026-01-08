@@ -1,14 +1,9 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { AsyncPipe, DatePipe, NgFor, NgIf, NgClass } from '@angular/common';
-import { Observable, combineLatest, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { CartService } from '../../../services/cart-service';
-import { ReservationService } from '../../../services/reservation-service';
-import { BookService } from '../../../services/book-service';
-import { LoanService } from '../../../services/loan-service';
-import { Book } from '../../../models/book.model';
-
-type ReservationStatus = 'pending' | 'ready' | 'expired' | 'fulfilled';
+import { ReservationService, ReservationStatus, Reservation } from '../../../services/reservation-service';
 
 export interface ReservationVM {
   reservation_id: number;
@@ -18,6 +13,7 @@ export interface ReservationVM {
   reservation_date: string;
   expiry_date: string;
   status: ReservationStatus;
+  waiting_ahead: number;
   canBorrow: boolean;
 }
 
@@ -30,9 +26,6 @@ export interface ReservationVM {
 })
 export class Requests implements OnInit {
   private reservationService = inject(ReservationService);
-  private bookService = inject(BookService);
-  private loanService = inject(LoanService);
-
   cartService = inject(CartService);
 
   reservations$!: Observable<ReservationVM[]>;
@@ -43,37 +36,25 @@ export class Requests implements OnInit {
   }
 
   load() {
-    this.reservations$ = combineLatest([
-      this.reservationService.getMyReservations('all'),
-      this.bookService.getBooks()
-    ]).pipe(
-      map(([rows, books]) => {
-        const list = rows ?? [];
-        return list.map(r => {
-          const b = books.find(bb => bb.id === r.book_id);
-          const title = b?.title ?? `Book #${r.book_id}`;
-          const author = b?.author ?? '';
-          const status = (r.status as ReservationStatus);
-
-          return {
-            reservation_id: r.reservation_id,
-            book_id: r.book_id,
-            title,
-            author,
-            reservation_date: r.reservation_date ?? '',
-            expiry_date: r.expiry_date ?? '',
-            status,
-            canBorrow: status === 'ready'
-          } as ReservationVM;
-        });
-      })
+    this.reservations$ = this.reservationService.getMyReservations('all').pipe(
+      map((rows: Reservation[]) => (rows ?? []).map(r => ({
+        reservation_id: r.reservation_id,
+        book_id: r.book_id,
+        title: r.title ?? `Book #${r.book_id}`,
+        author: r.author ?? '',
+        reservation_date: r.reservation_date ?? '',
+        expiry_date: r.expiry_date ?? '',
+        status: r.status,
+        waiting_ahead: Number(r.waiting_ahead ?? 0),
+        canBorrow: !!r.can_borrow
+      })))
     );
   }
 
   statusHu(s: ReservationStatus): string {
     switch (s) {
       case 'pending': return 'Függőben';
-      case 'ready': return 'Átvehető';
+      case 'ready': return 'Aktív';
       case 'expired': return 'Lejárt';
       case 'fulfilled': return 'Teljesítve';
     }
@@ -89,14 +70,14 @@ export class Requests implements OnInit {
     }
   }
 
-  borrowFromReady(r: ReservationVM) {
-    this.loanService.createLoanForBook(r.book_id, 14).subscribe({
+  borrowFromReservation(r: ReservationVM) {
+    this.reservationService.borrowFromReservation(r.reservation_id, 14).subscribe({
       next: () => {
         this.cartService.showAlert(`Kölcsönzés sikeres: "${r.title}"`, 'success');
         this.load();
       },
       error: (err) => {
-        console.error('[Requests] createLoanForBook error', err);
+        console.error('[Requests] borrowFromReservation error', err);
         this.cartService.showAlert(err?.error?.message || 'Nem sikerült kölcsönözni.', 'danger');
       }
     });

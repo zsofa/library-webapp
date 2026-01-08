@@ -25,11 +25,21 @@ export class BookService {
   }
 
   private mapApiBookToBook(api: ApiBook): Book {
+    const total = Number(api.total_items ?? 0);
+    const avail = Number(api.available_items ?? 0);
+    const wait = Number(api.waitlist_count ?? 0);
+
     return {
       id: api.book_id,
       title: api.title,
       author: api.author,
-      available: (api.available_items ?? 0) > 0,
+
+      total_items: total,
+      availableItems: avail,
+      waitlistCount: wait,
+
+      available: avail > 0,
+
       extended: false,
       requested: false,
       borrowed: false,
@@ -40,13 +50,8 @@ export class BookService {
   }
 
   requestBook(bookId: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/reservations`, { book_id: bookId });
-  }
-
-  borrowBook(bookId: number, loanDays: number = 14): Observable<any> {
-    return this.http.post(`${this.apiUrl}/loans`, {
-      book_id: bookId,
-      loan_days: loanDays
+    return this.http.post(`${this.apiUrl}/reservations`, {
+      book_id: bookId
     });
   }
 

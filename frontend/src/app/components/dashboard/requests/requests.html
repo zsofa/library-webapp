@@ -23,10 +23,11 @@
           <tr>
             <th style="width: 60px;">#</th>
             <th>Könyv</th>
+            <th style="width: 140px;">Sorban</th>
             <th style="width: 160px;">Dátum</th>
             <th style="width: 160px;">Lejárat</th>
             <th style="width: 140px;">Státusz</th>
-            <th style="width: 220px;"></th>
+            <th style="width: 240px;"></th>
           </tr>
         </thead>
 
@@ -38,6 +39,11 @@
               <td>
                 <div class="fw-semibold">{{ r.title }}</div>
                 <div class="text-muted small">{{ r.author }}</div>
+              </td>
+
+              <td>
+                <span class="fw-semibold">{{ r.waiting_ahead + 1 }}.</span>
+                <div class="text-muted small">{{ r.waiting_ahead }} előtted</div>
               </td>
 
               <td class="text-muted">
@@ -58,12 +64,12 @@
               <td class="text-end">
                 @if (r.canBorrow) {
                   <button class="btn btn-success btn-sm me-2 fw-semibold"
-                          (click)="borrowFromReady(r)">
-                    <i class="bi bi-check2-circle me-1"></i>Átvétel / Kölcsönzés
+                          (click)="borrowFromReservation(r)">
+                    <i class="bi bi-check2-circle me-1"></i>Kölcsönzés
                   </button>
                 } @else {
                   <button class="btn btn-outline-secondary btn-sm me-2 disabled">
-                    <i class="bi bi-lock me-1"></i>Nem átvehető
+                    <i class="bi bi-hourglass me-1"></i>Várakozás
                   </button>
                 }
 

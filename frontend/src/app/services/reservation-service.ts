@@ -13,6 +13,11 @@ export interface Reservation {
   reservation_date: string | null;
   expiry_date: string | null;
   status: ReservationStatus;
+
+  title?: string;
+  author?: string;
+  waiting_ahead?: number;
+  can_borrow?: boolean;
 }
 
 @Injectable({
@@ -52,11 +57,7 @@ export class ReservationService {
     return this.http.post(`${this.apiUrl}/reservations/${reservationId}/cancel`, {});
   }
 
-  getReservationsForBook(bookId: number): Observable<Reservation[]> {
-    return this.http.get<Reservation[]>(`${this.apiUrl}/books/${bookId}/reservations`);
-  }
-
-  updateReservationStatus(reservationId: number, status: ReservationStatus): Observable<Reservation> {
-    return this.http.post<Reservation>(`${this.apiUrl}/reservations/${reservationId}/status`, { status });
+  borrowFromReservation(reservationId: number, loanDays: number = 14): Observable<any> {
+    return this.http.post(`${this.apiUrl}/reservations/${reservationId}/borrow`, { loan_days: loanDays });
   }
 }

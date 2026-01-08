@@ -7,6 +7,8 @@ export interface Book {
   extended: boolean;
   requested: boolean;
   borrowed: boolean;
+  total_items?: number;
+  availableItems: number;
 
   requestedAt?: Date | null;
   borrowedDate?: Date | null;
@@ -25,6 +27,6 @@ export interface ApiBook {
   total_items?: number;
   available_items?: number;
 
-  // ✅ backendből jön
+ 
   waitlist_count?: number;
 }
