@@ -1,27 +1,21 @@
----Insert adatok---
 INSERT INTO user_role (role_id, role_name) VALUES
-    (1, 'Admin'),
-    (2, 'Member')
+  (1, 'Admin'),
+  (2, 'Member')
 ON CONFLICT (role_id) DO NOTHING;
----
+
 INSERT INTO library (library_id, name, address) VALUES
-    (1, 'Central Library', 'Budapest, Kossuth Lajos tér 1.')
+  (1, 'Central Library', 'Budapest, Kossuth Lajos tér 1.')
 ON CONFLICT (library_id) DO NOTHING;
 
-
--- Jelszó: admin123456.!
--- MD5 hash: 1c548a47ff71343753a806954a6ff336
-INSERT INTO app_user (user_id, library_id, role_id, name, date_of_birth, email, password_hash, address) VALUES
-    (1, 1, 1, 'Admin Elek', '1980-01-01', 'admin@library.hu', '1c548a47ff71343753a806954a6ff336', 'Admin Address')
+INSERT INTO app_user (user_id, library_id, role_id, name, date_of_birth, email, password_hash, address, is_active) VALUES
+  (1, 1, 1, 'Admin Elek', '1980-01-01', 'admin@library.hu', '1c548a47ff71343753a806954a6ff336', 'Admin Address', TRUE)
 ON CONFLICT (user_id) DO NOTHING;
----
+
+
 INSERT INTO book (book_id, title, author, isbn, publication_year, category) VALUES
--- Eredeti könyvek
 (1, 'It', 'Stephen King', '978-0670813025', 1986, 'Horror'),
 (2, 'The Hitchhiker''s Guide to the Galaxy', 'Douglas Adams', '978-0345391803', 1979, 'Sci-fi'),
 (3, '1984', 'George Orwell', '978-0451524935', 1949, 'Dystopia'),
-
--- SCI-FI / FANTASY (15 cím)
 (4, 'Dune', 'Frank Herbert', '978-0441172719', 1965, 'Sci-fi'),
 (5, 'Foundation', 'Isaac Asimov', '978-0553382570', 1951, 'Sci-fi'),
 (6, 'The Lord of the Rings', 'J.R.R. Tolkien', '978-0618260214', 1954, 'Fantasy'),
@@ -37,8 +31,6 @@ INSERT INTO book (book_id, title, author, isbn, publication_year, category) VALU
 (16, 'Starship Troopers', 'Robert A. Heinlein', '978-0441783588', 1959, 'Sci-fi'),
 (17, 'The Colour of Magic', 'Terry Pratchett', '978-0061020611', 1983, 'Fantasy'),
 (18, 'Children of Time', 'Adrian Tchaikovsky', '978-0356504959', 2015, 'Sci-fi'),
-
--- NOVELLÁK / IRODALMI / KLASSZIKUS (20 cím)
 (19, 'The Great Gatsby', 'F. Scott Fitzgerald', '978-0743273565', 1925, 'Literary Fiction'),
 (20, 'To Kill a Mockingbird', 'Harper Lee', '978-0446310789', 1960, 'Literary Fiction'),
 (21, 'Moby Dick', 'Herman Melville', '978-0142437247', 1851, 'Classic'),
@@ -59,8 +51,6 @@ INSERT INTO book (book_id, title, author, isbn, publication_year, category) VALU
 (36, 'Frankenstein', 'Mary Shelley', '978-0486282121', 1818, 'Classic'),
 (37, 'Dracula', 'Bram Stoker', '978-0486411095', 1897, 'Horror'),
 (38, 'Gone Girl', 'Gillian Flynn', '978-0307588371', 2012, 'Thriller'),
-
--- REGÉNYEK (HORROR/THRILLER/EGYÉB) (15 cím)
 (39, 'The Shining', 'Stephen King', '978-0385121675', 1977, 'Horror'),
 (40, 'Misery', 'Stephen King', '978-0451153549', 1987, 'Horror'),
 (41, 'The Da Vinci Code', 'Dan Brown', '978-0385504201', 2003, 'Thriller'),
@@ -76,13 +66,10 @@ INSERT INTO book (book_id, title, author, isbn, publication_year, category) VALU
 (51, 'The Silent Patient', 'Alex Michaelides', '978-1250301703', 2019, 'Thriller'),
 (52, 'The God of Small Things', 'Arundhati Roy', '978-0679745587', 1997, 'Literary Fiction'),
 (53, 'Atomic Habits', 'James Clear', '978-0735211292', 2018, 'Self-Help')
-
 ON CONFLICT (book_id) DO NOTHING;
 
----
-
+--- Példányok ---
 INSERT INTO item (item_id, book_id, library_id, item_condition, shelf_mark) VALUES
--- Eredeti és több példányban lévő könyvek (ID 1-29)
 (1, 1, 1, 'good', 'SK-101-A'), (2, 1, 1, 'average', 'SK-101-B'), (3, 1, 1, 'new', 'SK-101-C'),
 (4, 2, 1, 'good', 'DA-201-A'), (5, 2, 1, 'worn', 'DA-201-B'),
 (6, 3, 1, 'good', 'GO-301-A'),
@@ -95,8 +82,6 @@ INSERT INTO item (item_id, book_id, library_id, item_condition, shelf_mark) VALU
 (21, 11, 1, 'good', 'SF-011-A'), (22, 12, 1, 'good', 'SF-012-A'), (23, 13, 1, 'good', 'F-013-A'),
 (24, 14, 1, 'average', 'SF-014-A'), (25, 15, 1, 'new', 'SF-015-A'), (26, 15, 1, 'good', 'SF-015-B'),
 (27, 16, 1, 'good', 'SF-016-A'), (28, 17, 1, 'good', 'F-017-A'), (29, 18, 1, 'average', 'SF-018-A'),
-
--- Klasszikusok (ID 30-49)
 (30, 19, 1, 'good', 'L-019-A'), (31, 20, 1, 'good', 'L-020-A'), (32, 21, 1, 'average', 'C-021-A'),
 (33, 22, 1, 'new', 'C-022-A'), (34, 23, 1, 'good', 'C-023-A'), (35, 24, 1, 'average', 'C-024-A'),
 (36, 25, 1, 'good', 'L-025-A'), (37, 26, 1, 'good', 'L-026-A'), (38, 27, 1, 'average', 'L-027-A'),
@@ -104,8 +89,6 @@ INSERT INTO item (item_id, book_id, library_id, item_condition, shelf_mark) VALU
 (42, 31, 1, 'good', 'L-031-A'), (43, 32, 1, 'average', 'SS-032-A'), (44, 33, 1, 'good', 'N-033-A'),
 (45, 34, 1, 'worn', 'C-034-A'), (46, 35, 1, 'good', 'C-035-A'), (47, 36, 1, 'good', 'C-036-A'),
 (48, 37, 1, 'good', 'H-037-A'), (49, 38, 1, 'average', 'T-038-A'),
-
--- Modern regények/Thriller (ID 50-66)
 (50, 39, 1, 'good', 'H-039-A'), (51, 39, 1, 'new', 'H-039-B'),
 (52, 40, 1, 'good', 'H-040-A'),
 (53, 41, 1, 'good', 'T-041-A'),
@@ -121,5 +104,10 @@ INSERT INTO item (item_id, book_id, library_id, item_condition, shelf_mark) VALU
 (64, 51, 1, 'average', 'T-051-A'),
 (65, 52, 1, 'good', 'L-052-A'),
 (66, 53, 1, 'new', 'SH-053-A')
-
 ON CONFLICT (item_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('app_user','user_id'), COALESCE((SELECT MAX(user_id) FROM app_user), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('book','book_id'), COALESCE((SELECT MAX(book_id) FROM book), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('item','item_id'), COALESCE((SELECT MAX(item_id) FROM item), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('loan','loan_id'), COALESCE((SELECT MAX(loan_id) FROM loan), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('reservation','reservation_id'), COALESCE((SELECT MAX(reservation_id) FROM reservation), 1), TRUE);
